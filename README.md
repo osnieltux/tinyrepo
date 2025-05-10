@@ -10,7 +10,8 @@ A simple command-line application written in **[Go](https://golang.org/)** to cr
 ---
 
 ### 🚀 How it works
-
+- #### `mv tinyrepo-linux-amd64 tinyrepo` rename bin
+- #### `chmod +x tinyrepo` execute permissions
 - #### `./tinyrepo -gc > config.toml` creates a config file
 - #### `./tinyrepo -di` downloads indexes from the internet
 - #### `./tinyrepo -ci` creates local repository indexes
