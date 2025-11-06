@@ -42,3 +42,9 @@ A simple command-line application written in **[Go](https://golang.org/)** to cr
   - remove `#FilenameUrl` from destination repo  
   - compress `Packages` in `.gz` and `.xz`  
   - generate `InRelease`
+
+---
+
+
+### 💸 Sponsors
+  [![PayPal](https://img.shields.io/badge/PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/osnieltux)
