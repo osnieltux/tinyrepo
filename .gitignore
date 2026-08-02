@@ -1,0 +1,20 @@
+# compiled binary
+/tinyrepo
+/tinyrepo-*
+
+# local configuration and generated repository
+/config.toml
+/dists_cache/
+/dists/
+/pool/
+/.tinyrepo/
+
+# generated pacman repository
+/db_cache/
+/tinyrepo.db*
+/tinyrepo.files*
+/*.pkg.tar.zst
+
+# test artifacts
+*.tinyrepo.tmp
+coverage.out
