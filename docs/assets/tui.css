@@ -49,15 +49,50 @@ main { max-width: var(--measure); margin: 0 auto; }
 header { margin-bottom: 2rem; }
 
 .logo {
+  /* Not the boxed pre the rest of the page uses: the logo is a heading, not a
+     command block. The line height is the fiddly part: in a terminal a glyph
+     fills its cell, but in a browser "|" and "\" run the full em, so anything
+     under about 1.3 makes the rows overlap. The lower clamp bound matters for the
+     same reason: shrunk far enough, rounding to whole pixels closes the gap
+     again, and 40 columns still fit a 360px screen at 0.7rem. */
+  background: none;
+  border: 0;
   color: var(--accent);
-  font-size: clamp(0.6rem, 2.4vw, 0.85rem);
-  line-height: 1.15;
+  font-size: clamp(0.7rem, 2.2vw, 1rem);
+  line-height: 1.4;
   margin: 0 0 0.75rem;
   overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0;
   white-space: pre;
 }
 
-.tagline { color: var(--dim); margin: 0; }
+.tagline { color: var(--dim); margin: 0 0 1.25rem; }
+
+/* ── download ──────────────────────────────────────────────────────────── */
+
+/* The link points at /releases/latest/download/, which GitHub redirects to
+   whatever the newest release holds, so the button never needs updating when a
+   version ships. */
+.get {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.get a.button {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.4rem 1.1rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.get a.button:hover { background: var(--accent); color: var(--bg); }
+
+.get .other { color: var(--dim); font-size: 0.85rem; }
+.get .other a { color: var(--dim); }
+.get .other a:hover { color: var(--accent); }
 
 /* ── language switch ───────────────────────────────────────────────────── */
 
