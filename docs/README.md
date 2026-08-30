@@ -3,16 +3,19 @@
 Static landing page for the project, in English (`/`) and Spanish (`/es/`).
 
 ```
-web/
+docs/
   index.html        English
   es/index.html     Spanish
   assets/tui.css    the whole design, ~4 KB
 ```
 
-Serve it with anything:
+Named `docs/` because that is the one subdirectory GitHub Pages will serve from
+a branch; there is nothing generated here and nothing to build.
+
+Serve it locally with anything:
 
 ```sh
-python3 -m http.server -d web 8000
+python3 -m http.server -d docs 8000
 # or, with tinyrepo itself in front of a copy of these files
 ```
 
@@ -50,6 +53,17 @@ Things worth *not* reaching for:
 
 ## Deploying
 
-The directory is already the document root. GitHub Pages, Netlify, Cloudflare
-Pages or `rsync` to a static host all work with no configuration; point them at
-`web/` and set no build command.
+The directory is already the document root, so there is no build command to set
+anywhere.
+
+**GitHub Pages**: Settings → Pages → Source *Deploy from a branch*, branch
+`main`, folder `/docs`. The site appears at `https://<user>.github.io/tinyrepo/`
+within a minute or two.
+
+For a custom domain, add a `CNAME` file here holding the bare domain, then point
+DNS at GitHub: four `A` records on the apex (185.199.108.153, .109.153,
+.110.153, .111.153) or a `CNAME` to `<user>.github.io` on a `www` subdomain.
+Pages issues the certificate itself once the DNS resolves.
+
+**Anything else**: Netlify, Cloudflare Pages or `rsync` to a static host all
+work the same way; point them at `docs/` and set no build command.

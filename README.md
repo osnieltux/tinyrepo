@@ -556,6 +556,7 @@ the mirror; matching exact versions is the package manager's job at install time
 ```
 cmd/tinyrepo/       entry point (main)
 internal/tinyrepo/  everything else: config, backends, resolver, web server
+docs/               the project website, published with GitHub Pages
 ```
 
 ---
