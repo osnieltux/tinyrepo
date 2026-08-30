@@ -546,6 +546,38 @@ the mirror; matching exact versions is the package manager's job at install time
 
 ---
 
+### 📥 Releases
+
+Every tag builds its own binaries in CI and attaches them to the release, so
+what is published is always what the tag contains:
+
+| | |
+| --- | --- |
+| `tinyrepo-linux-amd64` | servers and desktops |
+| `tinyrepo-linux-arm64` | ARM servers, Raspberry Pi 4/5 on a 64-bit system |
+| `tinyrepo-linux-armv7` | 32-bit Raspberry Pi |
+| `tinyrepo-darwin-amd64` / `-arm64` | macOS, Intel and Apple silicon |
+| `tinyrepo-windows-amd64.exe` | Windows |
+
+They are built with `CGO_ENABLED=0`, so they are static and run on musl (Alpine)
+as well as glibc. `SHA256SUMS` is attached alongside them:
+
+```sh
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+To cut a release: push a tag.
+
+```sh
+git tag -a v1.0.0 -m "v1.0.0" && git push origin v1.0.0
+```
+
+The workflow runs the unit tests first and refuses to publish a binary that does
+not pass them. `Actions → Release → Run workflow` rebuilds an existing tag's
+assets without moving the tag.
+
+---
+
 ### 🤖 Compilation (Linux, macOS, etc.)
 - `go build -ldflags="-s -w" -o tinyrepo ./cmd/tinyrepo`
 

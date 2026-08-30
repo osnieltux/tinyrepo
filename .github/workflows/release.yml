@@ -1,0 +1,106 @@
+# Builds the binaries a release ships and attaches them to it.
+#
+# The assets used to be built and uploaded by hand, which is why they went stale
+# the moment the code moved under cmd/. Now a tag is the only thing that has to
+# happen by hand.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  # So a release can be rebuilt without moving the tag, and so the build can be
+  # exercised before there is anything to publish.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build and upload to (blank: build only)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      # A binary nobody can trust is worse than no binary: never publish one
+      # that does not pass its own tests. -short skips the mirror downloads,
+      # which are the integration job's business and would make a release
+      # depend on deb.debian.org being up.
+      - name: Unit tests
+        run: go test -short -race ./...
+
+      - name: Build
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          set -eu
+          mkdir -p dist
+
+          # CGO off, so the binaries are static and run on musl (Alpine) as
+          # well as glibc. -trimpath keeps the runner's paths out of them.
+          build() {
+            os="$1"; arch="$2"; arm="${3:-}"; ext="${4:-}"
+
+            label="$arch"
+            [ -n "$arm" ] && label="armv$arm"
+            out="dist/tinyrepo-${os}-${label}${ext}"
+
+            echo "building $out"
+            GOOS="$os" GOARCH="$arch" GOARM="$arm" \
+              go build -trimpath -ldflags="-s -w" -o "$out" ./cmd/tinyrepo
+          }
+
+          # amd64 and arm64 cover servers; armv7 is the Raspberry Pi a local
+          # mirror often runs on.
+          build linux   amd64
+          build linux   arm64
+          build linux   arm   7
+          build darwin  amd64
+          build darwin  arm64
+          build windows amd64 "" .exe
+
+          ( cd dist && sha256sum tinyrepo-* > SHA256SUMS )
+          ls -l dist
+
+      # Proves the artefact runs at all, rather than only that it linked.
+      - name: Smoke test the linux binary
+        run: |
+          chmod +x dist/tinyrepo-linux-amd64
+          ./dist/tinyrepo-linux-amd64 -help | head -3
+          ./dist/tinyrepo-linux-amd64 -gc > /dev/null
+          file dist/tinyrepo-linux-amd64
+
+      - name: Upload to the release
+        if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -eu
+
+          # Create the release if the tag has none yet, then replace whatever
+          # assets are on it, so re-running never leaves a stale binary behind.
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --generate-notes
+          fi
+          gh release upload "$TAG" dist/* --clobber
+
+      # Without a tag there is nothing to attach to, so keep the binaries on the
+      # run itself: that is what makes workflow_dispatch useful for testing.
+      - name: Keep the binaries on the run
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        uses: actions/upload-artifact@v4
+        with:
+          name: tinyrepo-binaries
+          path: dist/
