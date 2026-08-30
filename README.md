@@ -37,8 +37,12 @@ format - no commented-out alternatives to uncomment.
 | `-dp` | download the packages themselves |
 | `-ws` | serve the repository over HTTP, until `Ctrl+C` |
 | `-cl` | remove packages that `config.toml` does not ask for |
+| `-vp` | check that every requested package exists on the mirror |
 | `-gc` / `-ga` | print an example `config.toml` for Debian / Arch |
 | `-ec` | list the exit codes |
+| `-pw` | hash a password for the web config panel, printed to stdout |
+| `-sp` | ask for a password and write it into `config.toml` |
+| `-gs` / `-gr` | print a systemd unit / an OpenRC service (Alpine) |
 | `-help` | show the help |
 
 The flags compose, so `./tinyrepo -ci -ws` rebuilds the repository and then
@@ -62,6 +66,135 @@ Server = http://<host>/
 
 The individual packages keep their upstream `%PGPSIG%`, so pacman still reports
 `Validated By: Signature` for them.
+
+---
+
+### 🔎 Checking the package list
+
+```sh
+./tinyrepo -di -vp
+```
+
+`-vp` answers the question a typo raises: does the mirror really have this
+name? It reads the index `-di` cached, so it costs nothing and needs no network,
+and it checks every configured architecture.
+
+```
+amd64
+  MISSING nanoo                  nothing on the mirror answers to this name
+  ok      astrometry-data-2mass  in the index
+```
+
+Missing entries come first and it exits **18** if there are any, so it drops
+straight into a script or a CI job. A name that is not a package but is
+*provided* by one, or an Arch group, is reported as such rather than as missing
+— both are things you can legitimately ask for.
+
+The same check is a button in the web panel, which lists the result next to the
+packages field.
+
+---
+
+### 🖥️ Web config panel
+
+`-ws` can also publish `/admin`: a form that edits `config.toml` and buttons
+that run `-di`, `-ci`, `-dp` and `-cl`, with the log of the running action. It
+is off by default and requires a login.
+
+```toml
+[web]
+listen = "127.0.0.1:8080"
+config = true
+user = "admin"
+passwordHash = ""
+```
+
+```sh
+./tinyrepo -sp          # asks for a password, writes it into config.toml
+./tinyrepo -pw          # ...or just prints the hash, to place by hand
+```
+
+`-sp` rewrites the one `passwordHash` line and leaves every other line, and
+every comment, exactly as it was. It refuses to write to a field that is
+commented out — the sample configs ship it that way — and says which line to
+uncomment:
+
+```
+config.toml: the [web].passwordHash field is commented out on line 47
+uncomment it, then run -sp again. it can hold anything, -sp replaces the value
+```
+
+It exits 17 without touching the file, and warns afterwards if `[web].user` is
+still empty or `config` is still false, since neither publishes the panel on its
+own.
+
+The password is hashed with PBKDF2-HMAC-SHA256, 600k iterations and a per
+password salt, and is never written to `config.toml`, the log or the shell
+history. Sessions are a random token in an `HttpOnly`, `SameSite=Strict`
+cookie, they expire after 30 minutes idle and 12 hours in total, and every
+write is checked against a per-session CSRF token. Five failed logins from one
+address pause that address for fifteen minutes. The panel serves no JavaScript
+at all and its `Content-Security-Policy` allows none.
+
+Only one action runs at a time, since all four write the same directory. An
+action re-reads `config.toml`, so it always uses what was just saved; changes
+under `[web]`, and to `onDemand`, apply when the server is restarted.
+
+The password is sent as typed, so past loopback put TLS or a reverse proxy in
+front of it. `-ws` says so at startup when `listen` is not loopback.
+
+---
+
+### ⚙️ Running it as a service
+
+```sh
+./tinyrepo -gs | sudo tee /etc/systemd/system/tinyrepo.service   # systemd
+./tinyrepo -gr > /etc/init.d/tinyrepo && chmod +x /etc/init.d/tinyrepo   # Alpine
+```
+
+Both are filled in from where the binary and its `config.toml` actually are, and
+from `[destination].path`, so there is nothing left to edit. Each file starts
+with the `useradd`/`adduser` and `install -d` lines for the unprivileged account
+it runs as, and warns in place when `[web].listen` is loopback — a service that
+starts perfectly and answers nobody.
+
+The unit is sandboxed: `ProtectSystem=strict` with `ReadWritePaths` naming only
+the repository directory, an empty `CapabilityBoundingSet`, `PrivateTmp`,
+`RestrictAddressFamilies=AF_INET AF_INET6` and `SystemCallFilter=@system-service`
+— tinyrepo parses indexes from a mirror it does not control, so it is given as
+little as the job needs. Both wait for `network-online`, since on demand reaches
+the mirror while it is serving, and both stop on `SIGTERM` with 30 seconds to
+finish whatever is still streaming.
+
+---
+
+### 📋 The two package tables in the panel
+
+The panel has four tabs — **configuration**, **available**, **downloaded** and
+**log** — and two of them are tables of packages, answering different questions.
+
+**`/admin/available`** is the mirror's catalog: everything it offers, read from
+the index `-di` cached. Search by name *or* description, page through it, and
+add a name to `[destination].packages` without having to know it beforehand. A
+Debian suite is ~64,000 packages and 57 MB of stanzas, so it is parsed once and
+kept until the cached index changes — running `-di` from the panel is picked up
+on the next page view.
+
+**`/admin/packages`** is the other direction: what is actually on disk.
+
+`/admin/packages` lists every package file actually in the repository — name,
+version, architecture, size and date — paged 50 at a time, with a filter by name
+and a "only packages not in the list" switch. Each name links to the file, so a
+package can be downloaded straight from the table.
+
+On demand the repository fills with packages nobody declared, and that switch is
+how you see exactly what `-cl` would remove. Each row carries one button:
+
+- **+ add to list** — adopts the name into `[destination].packages`
+- **− in the list** — drops it again
+
+Neither downloads nor deletes anything: the list is what `-ci` resolves and what
+`-cl` keeps, so it changes what the next run does, not what is on disk now.
 
 ---
 
@@ -414,7 +547,16 @@ the mirror; matching exact versions is the package manager's job at install time
 ---
 
 ### 🤖 Compilation (Linux, macOS, etc.)
-- `go build -ldflags="-s -w" .`
+- `go build -ldflags="-s -w" -o tinyrepo ./cmd/tinyrepo`
+
+---
+
+### 📁 Layout
+
+```
+cmd/tinyrepo/       entry point (main)
+internal/tinyrepo/  everything else: config, backends, resolver, web server
+```
 
 ---
 
