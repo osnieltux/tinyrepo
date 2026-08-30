@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tinyrepo — repositorios locales pequeños de Debian y Arch</title>
+<meta name="description" content="Un único binario en Go que construye y publica repositorios locales pequeños para Debian y Arch Linux / Manjaro.">
+<link rel="alternate" hreflang="en" href="/">
+<link rel="alternate" hreflang="es" href="/es/">
+<link rel="stylesheet" href="../assets/tui.css">
+</head>
+<body>
+<main>
+
+<nav class="lang">
+  <a href="/es/" aria-current="true">ES</a>
+  <a href="/">EN</a>
+</nav>
+
+<header>
+<pre class="logo" aria-label="tinyrepo">  _   _                           
+ | |_(_)_ __  _   _ _ __ ___ _ __  ___
+ | __| | '_ \| | | | '__/ _ \ '_ \/ _ \
+ | |_| | | | | |_| | | |  __/ |_) | (_) |
+  \__|_|_| |_|\__, |_|  \___| .__/ \___/
+              |___/         |_|</pre>
+<p class="tagline">repositorios de paquetes locales y pequeños, un binario, sin demonio<span class="cursor"> </span></p>
+</header>
+
+<h2>qué es</h2>
+<p><strong>tinyrepo</strong> es una herramienta de línea de comandos
+escrita en <a href="https://golang.org/">Go</a> que construye repositorios
+locales pequeños para <strong>Debian</strong> y sus derivadas, y para
+<strong>Arch Linux / Manjaro</strong>. El formato se elige con <code>type</code>
+en <code>config.toml</code>; los comandos son los mismos para ambos.</p>
+<p>Nombras los paquetes que quieres, resuelve sus dependencias contra el índice
+real del mirror, descarga sólo lo que hace falta y publica el resultado por
+HTTP. Sin base de datos, sin demonio, sin dependencias en tiempo de
+ejecución.</p>
+
+<h2>inicio rápido</h2>
+<pre><code><span class="p">$</span> ./tinyrepo -gc &gt; config.toml   <span class="c"># config de ejemplo para Debian (-ga para Arch)</span>
+<span class="p">$</span> nano config.toml               <span class="c"># define el mirror, la ruta y los paquetes</span>
+
+<span class="p">$</span> ./tinyrepo -di -ci -dp         <span class="c"># descarga índices, construye el repo, descarga paquetes</span>
+<span class="p">$</span> ./tinyrepo -ws                 <span class="c"># publícalo por HTTP</span></code></pre>
+
+<h2>opciones</h2>
+<div class="scroll">
+<table>
+<thead><tr><th>opción</th><th>qué hace</th></tr></thead>
+<tbody>
+<tr><td><code>-di</code></td><td>descarga los índices de paquetes desde el mirror</td></tr>
+<tr><td><code>-ci</code></td><td>resuelve los paquetes pedidos y construye el repositorio</td></tr>
+<tr><td><code>-dp</code></td><td>descarga los paquetes</td></tr>
+<tr><td><code>-ws</code></td><td>publica el repositorio por HTTP, hasta Ctrl+C</td></tr>
+<tr><td><code>-cl</code></td><td>elimina los paquetes que config.toml no pide</td></tr>
+<tr><td><code>-vp</code></td><td>comprueba que cada paquete pedido existe en el mirror</td></tr>
+<tr><td><code>-gc</code> / <code>-ga</code></td><td>imprime un config.toml de ejemplo para Debian / Arch</td></tr>
+<tr><td><code>-ec</code></td><td>lista los códigos de salida</td></tr>
+<tr><td><code>-pw</code></td><td>genera el hash de una contraseña para el panel web y lo imprime</td></tr>
+<tr><td><code>-sp</code></td><td>pide una contraseña y la escribe en config.toml</td></tr>
+<tr><td><code>-gs</code> / <code>-gr</code></td><td>imprime una unidad de systemd / un servicio de OpenRC (Alpine)</td></tr>
+<tr><td><code>-help</code></td><td>muestra la ayuda</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>bajo demanda</h2>
+<p>Por defecto el repositorio es cerrado: contiene exactamente los
+paquetes que pide <code>config.toml</code>. Activando <code>onDemand</code> el
+índice publicado pasa a ser el archivo completo del mirror, mientras que en disco
+sólo se acumula lo que alguien instaló de verdad — la primera petición de un
+paquete lo transmite del mirror al cliente y al disco a la vez, y sus
+dependencias se precargan en segundo plano.</p>
+
+<h2>comprobar la lista de paquetes</h2>
+<p><code>-vp</code> responde a lo que provoca una errata: ¿tiene el mirror ese
+nombre de verdad? Lee el índice que <code>-di</code> ya cacheó, así que no
+cuesta nada, y sale con 18 si falta alguno — directo a un job de CI. La misma
+comprobación es un botón en el panel web.</p>
+<pre><code><span class="p">$</span> ./tinyrepo -di -vp
+  <span class="c">MISSING nanoo                  no hay nada en el mirror con ese nombre</span>
+  ok      astrometry-data-2mass  en el índice</code></pre>
+
+<h2>encontrar paquetes que añadir</h2>
+<p>La pestaña <em>disponibles</em> del panel es el catálogo completo del mirror
+— unos 64.000 paquetes en una suite de Debian — con búsqueda por nombre o
+descripción, paginado, y un botón en cada fila que añade el nombre a
+<code>[destination].packages</code>. El índice se parsea una vez y se conserva
+hasta que cambia, así que la página va rápida. La pestaña <em>descargados</em>
+responde a la otra pregunta: qué hay en disco.</p>
+
+<h2>panel de configuración web</h2>
+<p><code>-ws</code> puede publicar además <code>/admin</code>: un formulario que
+edita <code>config.toml</code>, botones que ejecutan las cuatro acciones con el
+registro de la que esté en curso, y la comprobación de paquetes de arriba.
+Desactivado por defecto y tras un inicio de sesión — la contraseña se guarda con
+PBKDF2-SHA256, las sesiones son <code>HttpOnly</code> y
+<code>SameSite=Strict</code>, cada escritura lleva un token CSRF, y el panel no
+sirve nada de JavaScript.</p>
+<pre><code><span class="p">$</span> ./tinyrepo -sp                 <span class="c"># pide la contraseña y la escribe en config.toml</span>
+<span class="p">$</span> ./tinyrepo -pw                 <span class="c"># ...o sólo imprime el hash, para pegarlo a mano</span></code></pre>
+<p><code>-sp</code> reescribe la única línea de <code>passwordHash</code> y deja
+todos los comentarios tal cual. Rechaza un campo comentado — los config de
+ejemplo lo traen así — e indica qué línea hay que descomentar.</p>
+
+<h2>la lista de paquetes en el panel</h2>
+<p><code>/admin/packages</code> lista todos los ficheros de paquete que hay
+realmente en el repositorio — nombre, versión, arquitectura, tamaño y fecha —
+paginados, con filtro, y cada nombre enlaza al fichero. Bajo demanda el
+repositorio se llena de paquetes que nadie declaró, así que un interruptor
+muestra sólo esos: justo lo que eliminaría <code>-cl</code>. Un botón en cada
+fila adopta un nombre en <code>[destination].packages</code> o lo quita — lo que
+cambia lo que hará la próxima ejecución, no lo que hay en disco ahora.</p>
+
+<h2>apuntar un cliente</h2>
+<p><strong>Debian</strong> — añádelo a <code>sources.list</code>:</p>
+<pre><code>deb [trusted=yes] http://&lt;host&gt;/ tinyrepo main</code></pre>
+<p><strong>Arch / Manjaro</strong> — añádelo a <code>/etc/pacman.conf</code>:</p>
+<pre><code>[tinyrepo]
+SigLevel = Optional TrustAll
+Server = http://&lt;host&gt;/</code></pre>
+<p class="note">Ninguno de los repositorios generados va firmado, así que hay que
+confiar en ellos explícitamente. Publícalo en una red que controles, o detrás de
+TLS: sobre HTTP en claro estas líneas le dicen al gestor de paquetes que instale
+lo que le responda. Los paquetes de pacman conservan su firma original.</p>
+
+<h2>ejecutarlo como servicio</h2>
+<p>Ambos ficheros se rellenan con las rutas reales del binario y de su
+<code>config.toml</code>, así que no queda nada que editar. La unidad de systemd
+va aislada — <code>ProtectSystem=strict</code>, capacidades vacías y
+<code>ReadWritePaths</code> apuntando sólo al directorio del repositorio.</p>
+<pre><code><span class="p">$</span> ./tinyrepo -gs | sudo tee /etc/systemd/system/tinyrepo.service
+<span class="p">$</span> ./tinyrepo -gr &gt; /etc/init.d/tinyrepo   <span class="c"># alpine</span></code></pre>
+
+<h2>obtenerlo</h2>
+<pre><code><span class="p">$</span> git clone https://github.com/osniel/tinyrepo
+<span class="p">$</span> cd tinyrepo
+<span class="p">$</span> go build -ldflags="-s -w" -o tinyrepo ./cmd/tinyrepo</code></pre>
+
+<footer>
+<a href="https://github.com/osniel/tinyrepo">código</a> ·
+<a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL v3</a> ·
+construido con Go 1.24
+</footer>
+
+</main>
+</body>
+</html>

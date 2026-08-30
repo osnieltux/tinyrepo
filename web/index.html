@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tinyrepo — small local Debian and Arch repositories</title>
+<meta name="description" content="A single Go binary that builds and serves small local package repositories for Debian and Arch Linux / Manjaro.">
+<link rel="alternate" hreflang="en" href="/">
+<link rel="alternate" hreflang="es" href="/es/">
+<link rel="stylesheet" href="assets/tui.css">
+</head>
+<body>
+<main>
+
+<nav class="lang">
+  <a href="/" aria-current="true">EN</a>
+  <a href="/es/">ES</a>
+</nav>
+
+<header>
+<pre class="logo" aria-label="tinyrepo">  _   _                           
+ | |_(_)_ __  _   _ _ __ ___ _ __  ___
+ | __| | '_ \| | | | '__/ _ \ '_ \/ _ \
+ | |_| | | | | |_| | | |  __/ |_) | (_) |
+  \__|_|_| |_|\__, |_|  \___| .__/ \___/
+              |___/         |_|</pre>
+<p class="tagline">small local package repositories, one binary, no daemon<span class="cursor"> </span></p>
+</header>
+
+<h2>what it is</h2>
+<p><strong>tinyrepo</strong> is a command line tool written in
+<a href="https://golang.org/">Go</a> that builds small local repositories for
+<strong>Debian</strong> and its derivatives, and for
+<strong>Arch Linux / Manjaro</strong>. Pick the format with <code>type</code> in
+<code>config.toml</code>; the commands are the same for both.</p>
+<p>It names the packages it wants, resolves their dependencies against the real
+upstream index, downloads only what that closure needs, and publishes the result
+over HTTP. No database, no daemon, no runtime dependencies.</p>
+
+<h2>quick start</h2>
+<pre><code><span class="p">$</span> ./tinyrepo -gc &gt; config.toml   <span class="c"># example config for Debian (-ga for Arch)</span>
+<span class="p">$</span> nano config.toml               <span class="c"># set the mirror, the path and the packages</span>
+
+<span class="p">$</span> ./tinyrepo -di -ci -dp         <span class="c"># download indexes, build the repo, download packages</span>
+<span class="p">$</span> ./tinyrepo -ws                 <span class="c"># publish it over HTTP</span></code></pre>
+
+<h2>flags</h2>
+<div class="scroll">
+<table>
+<thead><tr><th>flag</th><th>what it does</th></tr></thead>
+<tbody>
+<tr><td><code>-di</code></td><td>download the package indexes from the mirror</td></tr>
+<tr><td><code>-ci</code></td><td>resolve the requested packages and build the repository</td></tr>
+<tr><td><code>-dp</code></td><td>download the packages themselves</td></tr>
+<tr><td><code>-ws</code></td><td>serve the repository over HTTP, until Ctrl+C</td></tr>
+<tr><td><code>-cl</code></td><td>remove packages that config.toml does not ask for</td></tr>
+<tr><td><code>-vp</code></td><td>check that every requested package exists on the mirror</td></tr>
+<tr><td><code>-gc</code> / <code>-ga</code></td><td>print an example config.toml for Debian / Arch</td></tr>
+<tr><td><code>-ec</code></td><td>list the exit codes</td></tr>
+<tr><td><code>-pw</code></td><td>hash a password for the web config panel, printed to stdout</td></tr>
+<tr><td><code>-sp</code></td><td>ask for a password and write it into config.toml</td></tr>
+<tr><td><code>-gs</code> / <code>-gr</code></td><td>print a systemd unit / an OpenRC service (Alpine)</td></tr>
+<tr><td><code>-help</code></td><td>show the help</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>on demand</h2>
+<p>By default the repository is closed: it holds exactly the
+packages <code>config.toml</code> asks for. Turn on <code>onDemand</code> and the
+published index becomes the whole upstream archive, while the disk only ever
+fills with what somebody actually installed — the first request for a package
+streams it from the mirror to the client and to disk at the same time, and its
+dependencies are warmed in the background.</p>
+
+<h2>checking the package list</h2>
+<p><code>-vp</code> answers the question a typo raises: does the mirror really
+have this name? It reads the index <code>-di</code> already cached, so it costs
+nothing, and it exits 18 if anything is missing — straight into a CI job. The
+same check is a button in the web panel.</p>
+<pre><code><span class="p">$</span> ./tinyrepo -di -vp
+  <span class="c">MISSING nanoo                  nothing on the mirror answers to this name</span>
+  ok      astrometry-data-2mass  in the index</code></pre>
+
+<h2>finding packages to add</h2>
+<p>The panel's <em>available</em> tab is the mirror's whole catalog — ~64,000
+packages for a Debian suite — searchable by name or description and paged, with
+a button on each row that adds the name to <code>[destination].packages</code>.
+The index is parsed once and kept until it changes, so the page stays quick. Its
+<em>downloaded</em> tab answers the other question: what is on disk here.</p>
+
+<h2>web config panel</h2>
+<p><code>-ws</code> can also publish <code>/admin</code>: a form that edits
+<code>config.toml</code>, buttons that run the four actions with the log of
+whichever is running, and the package check above. Off by default and behind a
+login — the password is hashed with PBKDF2-SHA256, sessions are
+<code>HttpOnly</code> and <code>SameSite=Strict</code>, every write carries a
+CSRF token, and the panel ships no JavaScript at all.</p>
+<pre><code><span class="p">$</span> ./tinyrepo -sp                 <span class="c"># asks for a password, writes it into config.toml</span>
+<span class="p">$</span> ./tinyrepo -pw                 <span class="c"># ...or just prints the hash, to place by hand</span></code></pre>
+<p><code>-sp</code> rewrites the one <code>passwordHash</code> line and leaves
+every comment exactly as it was. It refuses a field that is commented out — the
+sample configs ship it that way — and says which line to uncomment.</p>
+
+<h2>the package list in the panel</h2>
+<p><code>/admin/packages</code> lists every package file actually in the
+repository — name, version, architecture, size and date — paged, filterable, and
+each name links to the file. On demand the repository fills with packages nobody
+declared, so one switch shows just those: exactly what <code>-cl</code> would
+remove. A button on each row adopts a name into
+<code>[destination].packages</code> or drops it again — which changes what the
+next run does, not what is on disk now.</p>
+
+<h2>pointing a client at it</h2>
+<p><strong>Debian</strong> — add it to <code>sources.list</code>:</p>
+<pre><code>deb [trusted=yes] http://&lt;host&gt;/ tinyrepo main</code></pre>
+<p><strong>Arch / Manjaro</strong> — add it to <code>/etc/pacman.conf</code>:</p>
+<pre><code>[tinyrepo]
+SigLevel = Optional TrustAll
+Server = http://&lt;host&gt;/</code></pre>
+<p class="note">Neither generated repository is signed, so each one has to be trusted
+explicitly. Publish it on a network you control, or behind TLS: over plain HTTP
+these lines tell the package manager to install whatever answers. Individual
+pacman packages keep their upstream signature.</p>
+
+<h2>running it as a service</h2>
+<p>Both files are filled in from where the binary and its <code>config.toml</code>
+actually are, so there is nothing left to edit. The systemd unit is sandboxed —
+<code>ProtectSystem=strict</code>, an empty capability set, and
+<code>ReadWritePaths</code> naming only the repository directory.</p>
+<pre><code><span class="p">$</span> ./tinyrepo -gs | sudo tee /etc/systemd/system/tinyrepo.service
+<span class="p">$</span> ./tinyrepo -gr &gt; /etc/init.d/tinyrepo   <span class="c"># alpine</span></code></pre>
+
+<h2>get it</h2>
+<pre><code><span class="p">$</span> git clone https://github.com/osniel/tinyrepo
+<span class="p">$</span> cd tinyrepo
+<span class="p">$</span> go build -ldflags="-s -w" -o tinyrepo ./cmd/tinyrepo</code></pre>
+
+<footer>
+<a href="https://github.com/osniel/tinyrepo">source</a> ·
+<a href="https://www.gnu.org/licenses/gpl-3.0.html">GPL v3</a> ·
+built with Go 1.24
+</footer>
+
+</main>
+</body>
+</html>
