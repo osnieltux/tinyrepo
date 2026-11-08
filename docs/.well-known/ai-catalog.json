@@ -1,0 +1,14 @@
+{
+  "name": "tinyrepo",
+  "description": "A single Go binary that builds and serves small local package repositories for Debian and Arch Linux / Manjaro.",
+  "url": "https://tinyrepo.dev/",
+  "languages": ["en", "es"],
+  "license": "GPL-3.0-or-later",
+  "resources": [
+    { "type": "llms.txt", "url": "https://tinyrepo.dev/llms.txt" },
+    { "type": "sitemap", "url": "https://tinyrepo.dev/sitemap.xml" },
+    { "type": "documentation", "url": "https://github.com/osnieltux/tinyrepo/blob/main/README.md" },
+    { "type": "source", "url": "https://github.com/osnieltux/tinyrepo" },
+    { "type": "download", "url": "https://github.com/osnieltux/tinyrepo/releases/latest" }
+  ]
+}

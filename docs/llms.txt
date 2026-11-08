@@ -1,0 +1,18 @@
+# tinyrepo
+
+> tinyrepo is a single Go binary that builds and serves small local package repositories for Debian (and derivatives) and for Arch Linux / Manjaro. The repository format is chosen with `type` in `config.toml`; the commands are the same for both. License: GPL v3.
+
+## Docs
+
+- [Website (English)](https://tinyrepo.dev/): what it is, quick start, flags, on-demand mode, package list, web config panel, client setup, running as a service
+- [Website (Spanish)](https://tinyrepo.dev/es/): the same content in Spanish
+- [README](https://github.com/osnieltux/tinyrepo/blob/main/README.md): full documentation
+
+## Download
+
+- [Latest release](https://github.com/osnieltux/tinyrepo/releases/latest)
+- [Linux amd64 binary](https://github.com/osnieltux/tinyrepo/releases/latest/download/tinyrepo-linux-amd64)
+
+## Optional
+
+- [Source code](https://github.com/osnieltux/tinyrepo)
