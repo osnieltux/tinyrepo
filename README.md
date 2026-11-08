@@ -1,5 +1,7 @@
 # tinyrepo
 
+🌐 **Website:** [tinyrepo.dev](https://tinyrepo.dev/)
+
 A simple command-line application written in **[Go](https://golang.org/)** to create small local repositories for **Debian** (and its derivatives) and for **Arch Linux / Manjaro**. This application is not intended to be perfect, it may contain bugs. The main goal of this project was to learn Golang.
 
 I started tinyrepo on my own, as a way to learn Go, and later improved it with
