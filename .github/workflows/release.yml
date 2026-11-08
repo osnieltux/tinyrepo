@@ -31,7 +31,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: "1.27"
 
       # A binary nobody can trust is worse than no binary: never publish one
       # that does not pass its own tests. -short skips the mirror downloads,
