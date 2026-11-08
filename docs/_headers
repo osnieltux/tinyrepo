@@ -1,0 +1,8 @@
+/.well-known/ai-catalog.json
+  Content-Type: application/ai-catalog+json
+
+/ai-catalog.json
+  Content-Type: application/ai-catalog+json
+
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
